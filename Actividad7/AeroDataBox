@@ -1,0 +1,266 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "0165d203-4b34-497a-a220-a534408bca1e",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import requests # Permite realizar solicitudes web para obtener datos de APIs\n",
+    "import json # Facilita el trabajo con datos en formato JSON, como leer y escribir archivos\n",
+    "import pandas as pd # Proporciona herramientas para crear y manipular estructuras de datos tabulares\n",
+    "from numpy import nan # Define un valor especial para representar datos que faltan o no están disponibles\n",
+    "from IPython.display import JSON # Habilita la visualización interactiva de datos JSON en un entorno de notebook\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "2de9a109-4d4b-4377-aef7-46fd68a7b876",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "url = \"https://aerodatabox.p.rapidapi.com/flights/airports/icao/LIRQ/2025-09-01T08:00/2025-09-01T20:00\"\n",
+    "#Define la dirección web de la API que se quiere consultar\n",
+    "\n",
+    "querystring = {\n",
+    "    \"withLeg\": \"true\",  # Indica información detallada de cada segmento del vuelo\n",
+    "    \"direction\": \"Arrival\",   # Filtra los vuelos para mostrar solo aquellos que llegan al aeropuerto\n",
+    "    \"withCancelled\": \"true\",  # Incluye en los resultados los vuelos que han sido cancelados\n",
+    "    \"withCodeshared\": \"true\",  # Muestra los vuelos que son operados por diferentes aerolíneas bajo un mismo código\n",
+    "    \"withCargo\": \"true\",  # Considera también los vuelos de carga en la búsqueda\n",
+    "    \"withPrivate\": \"true\",  # Añade vuelos privados a la lista de resultados\n",
+    "    \"withLocation\": \"false\"  # Excluye datos de ubicación geográfica para simplificar la respuesta\n",
+    "}\n",
+    "\n",
+    "headers = {\n",
+    "    \"x-rapidapi-host\": \"aerodatabox.p.rapidapi.com\",  # Especifica el servidor donde se encuentra la API\n",
+    "    \"x-rapidapi-key\": \"f118dcd354msh92afa0f378c69efp1b56b1jsn119fabd41f34\"  # Proporciona la clave para acceder a la API\n",
+    "}\n",
+    "\n",
+    "response = requests.get(url, headers=headers, params=querystring)  \n",
+    "# Envía la solicitud a la API y guarda la respuesta"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "fb963e1a-40c8-43d1-aadc-f8c0c16417a3",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Data appended to data.json file.\n"
+     ]
+    }
+   ],
+   "source": [
+    "if response.status_code == 200:  # Comprueba que la API respondió correctamente\n",
+    "    new_data = response.json()  # Convierte la respuesta JSON a diccionario de Python\n",
+    "\n",
+    "    try:\n",
+    "        with open(\"data.json\", \"r\") as json_file:  # Intenta abrir un archivo existente para añadir datos\n",
+    "            existing_data = json.load(json_file)   # Carga los datos que ya están guardados en el archivo\n",
+    "    except (FileNotFoundError, json.decoder.JSONDecodeError):  \n",
+    "         # Se ejecuta si el archivo no existe o está corrupto\n",
+    "        existing_data = []\n",
+    "\n",
+    "    existing_data.append(new_data) # Agrega la nueva información a los datos existente\n",
+    "\n",
+    "    with open(\"data.json\", \"w\") as json_file:   # Abre el archivo para guardar la información actualizada\n",
+    "        json.dump(existing_data, json_file, indent=4)   # Guarda los datos en formato JSON con una estructura legible\n",
+    "        print(\"Data appended to data.json file.\")   # Muestra un mensaje de confirmación\n",
+    "else:\n",
+    "    print(\"Failed to retrieve data from the API. Status code:\", response.status_code)\n",
+    "     # Informa si hubo un problema al obtener los datos"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "b491b6ba-c8e6-4c72-b1eb-9320f46f9891",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Número de llegadas registradas: 52\n",
+      "Ejemplo de vuelo:\n",
+      "Scheduled Time: {'utc': '2025-09-01 06:25Z', 'local': '2025-09-01 08:25+02:00'}\n",
+      "Flight Number: VY 6001\n",
+      "Terminal: None\n",
+      "From: Barcelona\n",
+      "Aircraft: Airbus A319\n",
+      "Airline: Vueling\n"
+     ]
+    }
+   ],
+   "source": [
+    "flight_arrivals = response.json()  # Guarda la respuesta JSON en variable\n",
+    "\n",
+    "print(\"Número de llegadas registradas:\", len(flight_arrivals.get(\"arrivals\", [])))\n",
+    "# Imprime la cantidad de vuelos de llegada encontrados\n",
+    "\n",
+    "if \"arrivals\" in flight_arrivals and len(flight_arrivals[\"arrivals\"]) > 0: # Verifica si hay información de llegadas y si hay al menos un vuelo\n",
+    "    sample = flight_arrivals[\"arrivals\"][0]   # Selecciona el primer vuelo de la lista como ejemplo\n",
+    "    print(\"Ejemplo de vuelo:\")\n",
+    "    print(\"Scheduled Time:\", sample[\"arrival\"].get(\"scheduledTime\")) # Muestra la hora programada de llegada\n",
+    "    print(\"Flight Number:\", sample.get(\"number\"))   # Muestra el número del vuelo\n",
+    "    print(\"Terminal:\", sample[\"arrival\"].get(\"terminal\"))   # Muestra la terminal de llegada\n",
+    "    print(\"From:\", sample[\"departure\"][\"airport\"].get(\"name\"))  # Muestra el aeropuerto de origen\n",
+    "    print(\"Aircraft:\", sample[\"aircraft\"].get(\"model\"))   # Muestra el modelo de avión\n",
+    "    print(\"Airline:\", sample[\"airline\"].get(\"name\"))  # Muestra el nombre de la aerolínea"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "2cf41cd1-28c1-4561-a0c8-4d43a6bb0433",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Flight_number</th>\n",
+       "      <th>From</th>\n",
+       "      <th>Airline</th>\n",
+       "      <th>Aircraft</th>\n",
+       "      <th>Scheduled_arrival_time.utc</th>\n",
+       "      <th>Scheduled_arrival_time.local</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>VY 6001</td>\n",
+       "      <td>Barcelona</td>\n",
+       "      <td>Vueling</td>\n",
+       "      <td>Airbus A319</td>\n",
+       "      <td>2025-09-01 06:25Z</td>\n",
+       "      <td>2025-09-01 08:25+02:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>AF 1066</td>\n",
+       "      <td>Paris</td>\n",
+       "      <td>Air France</td>\n",
+       "      <td>Airbus A318</td>\n",
+       "      <td>2025-09-01 07:00Z</td>\n",
+       "      <td>2025-09-01 09:00+02:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>EN 8192</td>\n",
+       "      <td>Munich</td>\n",
+       "      <td>Air Dolomiti</td>\n",
+       "      <td>Embraer 195</td>\n",
+       "      <td>2025-09-01 07:05Z</td>\n",
+       "      <td>2025-09-01 09:05+02:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>EN 8852</td>\n",
+       "      <td>Frankfurt-am-Main</td>\n",
+       "      <td>Air Dolomiti</td>\n",
+       "      <td>Embraer 190</td>\n",
+       "      <td>2025-09-01 07:40Z</td>\n",
+       "      <td>2025-09-01 09:40+02:00</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>LX 1678</td>\n",
+       "      <td>Zurich</td>\n",
+       "      <td>SWISS</td>\n",
+       "      <td>Airbus A220-100</td>\n",
+       "      <td>2025-09-01 07:45Z</td>\n",
+       "      <td>2025-09-01 09:45+02:00</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "  Flight_number               From       Airline         Aircraft  \\\n",
+       "0       VY 6001          Barcelona       Vueling      Airbus A319   \n",
+       "1       AF 1066              Paris    Air France      Airbus A318   \n",
+       "2       EN 8192             Munich  Air Dolomiti      Embraer 195   \n",
+       "3       EN 8852  Frankfurt-am-Main  Air Dolomiti      Embraer 190   \n",
+       "4       LX 1678             Zurich         SWISS  Airbus A220-100   \n",
+       "\n",
+       "  Scheduled_arrival_time.utc Scheduled_arrival_time.local  \n",
+       "0          2025-09-01 06:25Z       2025-09-01 08:25+02:00  \n",
+       "1          2025-09-01 07:00Z       2025-09-01 09:00+02:00  \n",
+       "2          2025-09-01 07:05Z       2025-09-01 09:05+02:00  \n",
+       "3          2025-09-01 07:40Z       2025-09-01 09:40+02:00  \n",
+       "4          2025-09-01 07:45Z       2025-09-01 09:45+02:00  "
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "def flight_extraction(flight):  # Define una función para organizar la información de cada vuelo\n",
+    "    return pd.json_normalize({\n",
+    "        \"Scheduled_arrival_time\": flight[\"arrival\"].get(\"scheduledTime\", nan), # Extrae y formatea la hora de llegada programada\n",
+    "        \"Flight_number\": flight.get(\"number\", nan),   # Obtiene el número de vuelo\n",
+    "        \"From\": flight[\"departure\"][\"airport\"].get(\"name\", nan),  # Registra el aeropuerto de origen\n",
+    "        \"Airline\": flight[\"airline\"].get(\"name\", nan),  # Identifica la aerolínea\n",
+    "        \"Aircraft\": flight[\"aircraft\"].get(\"model\", nan)   # Anota el modelo de la aeronave\n",
+    "    })\n",
+    "\n",
+    "if \"arrivals\" in flight_arrivals:  # Se comprueba si hay datos de llegadas para procesar\n",
+    "    flights_df = pd.concat(\n",
+    "        [flight_extraction(f) for f in flight_arrivals[\"arrivals\"]],   # Aplica la función a cada vuelo y combina los resultado\n",
+    "        ignore_index=True   # Reinicia los índices para evitar confusiones\n",
+    "    )\n",
+    "    display(flights_df.head())  # Muestra los primeros vuelos en formato de tabla\n",
+    "else:\n",
+    "    print(\"No arrivals data available.\")   # Informa si no se encontraron datos de llegadas"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
